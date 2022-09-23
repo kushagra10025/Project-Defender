@@ -17,25 +17,44 @@ class PROJECTDEFENDER_API APDPlayerPawn : public APawn
 	GENERATED_BODY()
 
 private:
-	UPROPERTY(EditAnywhere, Category="Components", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	USphereComponent* CollisionComponent;
 
-	UPROPERTY(EditAnywhere, Category="Components", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	UStaticMeshComponent* BaseMesh;
 
-	UPROPERTY(EditAnywhere, Category="Components", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	UStaticMeshComponent* MidMesh;
 	
-	UPROPERTY(EditAnywhere, Category="Components", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	UStaticMeshComponent* EndMesh;
 	
-	UPROPERTY(EditAnywhere, Category="Components", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	USpringArmComponent* CameraBoom;
 
-	UPROPERTY(EditAnywhere, Category="Components", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	UCameraComponent* LookCamera;
 	
 public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|Camera")
+	bool bEnableCameraEdgeRotation;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|Camera", meta=(ClampMin="0.0", ClampMax="1.0", EditCondition="bEnableCameraEdgeRotation"))
+	float ScreenHospotZone;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|Controls|Turn")
+	bool bCanTurnRight;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|Controls|Turn", meta=(EditCondition="bCanTurnRight"))
+	bool bClampTurnRotation;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|Controls|Turn", meta=(EditCondition="bClampTurnRotation"))
+	FVector2D TurnRotationLimits;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|Controls|Look")
+	bool bCanLookUp;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|Controls|Look", meta=(EditCondition="bCanLookUp"))
+	bool bClampLookRotation;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|Controls|Look", meta=(EditCondition="bClampLookRotation"))
+	FVector2D LookRotationLimits;
+	
 	// Sets default values for this pawn's properties
 	APDPlayerPawn();
 
@@ -43,6 +62,10 @@ public:
 	void TurnRight(float Value);
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Turret|Controls")
 	void LookUp(float Value);
+
+private:
+	void CameraEdgeRotation();
+	const FRotator GetCameraBoomYawRotation(float RotationSpeed);
 	
 protected:
 	// Called when the game starts or when spawned
