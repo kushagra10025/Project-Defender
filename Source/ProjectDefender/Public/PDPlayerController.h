@@ -13,5 +13,10 @@ UCLASS()
 class PROJECTDEFENDER_API APDPlayerController : public APlayerController
 {
 	GENERATED_BODY()
+
+public:
+	APDPlayerController();
+
+	virtual void BeginPlay() override;
 	
 };
