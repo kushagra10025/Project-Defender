@@ -6,6 +6,16 @@
 #include "GameFramework/Pawn.h"
 #include "PDPlayerPawn.generated.h"
 
+UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
+enum class EFireMode: uint8
+{
+	None = 0 UMETA(Hidden),
+	Single = 1 << 0 UMETA(DisplayName = "Single"),
+	Burst = 1 << 1 UMETA(DisplayName = "Burst"),
+	Auto = 1 << 2 UMETA(DisplayName = "Auto"),
+	
+};
+
 class USphereComponent;
 class UStaticMeshComponent;
 class USpringArmComponent;
@@ -34,6 +44,10 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	UCameraComponent* LookCamera;
+
+	FTimerHandle TimerHandle_FireMode_Auto;
+	FTimerHandle TimerHandle_FireMode_Burst;
+	uint8 TempBurstFireCount;
 	
 public:
 
@@ -54,6 +68,19 @@ public:
 	bool bClampLookRotation;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|Controls|Look", meta=(EditCondition="bClampLookRotation"))
 	FVector2D LookRotationLimits;
+
+	// TODO Use BitFlags to Enable FireModes
+	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|General", meta=(Bitmask, BitmaskEnum=EFireMode))
+	// uint8 FireModes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|General")
+	EFireMode CurrentFireMode;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|General", meta=(ClampMin="0.0", EditCondition="CurrentFireMode==EFireMode::Auto"))
+	float AutoFireDuration;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|General", meta=(ClampMin="0", EditCondition="CurrentFireMode==EFireMode::Burst"))
+	uint8 BurstFireCount;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|General", meta=(ClampMin="0.0", EditCondition="CurrentFireMode==EFireMode::Burst"))
+	float BurstFireDuration;
 	
 	// Sets default values for this pawn's properties
 	APDPlayerPawn();
@@ -63,9 +90,19 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Turret|Controls")
 	void LookUp(float Value);
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Turret|Firing")
+	void PrimaryAttack_Pressed();
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Turret|Firing")
+	void PrimaryAttack_Released();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Turret|Firing")
+	void FireWeapon();
+
 private:
 	void CameraEdgeRotation();
 	const FRotator GetCameraBoomYawRotation(float RotationSpeed);
+	void FireMode_Auto();
+	void FireMode_Burst();
 	
 protected:
 	// Called when the game starts or when spawned

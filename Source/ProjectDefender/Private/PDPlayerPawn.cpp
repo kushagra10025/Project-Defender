@@ -47,6 +47,13 @@ APDPlayerPawn::APDPlayerPawn()
 	bClampLookRotation = false;
 	LookRotationLimits = FVector2D(-20.0f, 20.0f);
 
+	// FireModes = static_cast<uint8>(EFireMode::FM_Single) | static_cast<uint8>(EFireMode::FM_Burst) | static_cast<uint8>(EFireMode::FM_Auto);
+	CurrentFireMode = EFireMode::Single;
+	BurstFireCount = 3;
+	TempBurstFireCount = BurstFireCount;
+	BurstFireDuration = 0.15f;
+	AutoFireDuration = 0.1f;
+
 }
 
 void APDPlayerPawn::TurnRight_Implementation(float Value)
@@ -90,6 +97,36 @@ void APDPlayerPawn::LookUp_Implementation(float Value)
 	}
 }
 
+void APDPlayerPawn::PrimaryAttack_Released_Implementation()
+{
+	TempBurstFireCount = BurstFireCount;
+	GetWorldTimerManager().ClearTimer(TimerHandle_FireMode_Burst); // Clear and Invalidate Timer
+	GetWorldTimerManager().ClearTimer(TimerHandle_FireMode_Auto); // Clear and Invalidate Timer
+}
+
+void APDPlayerPawn::PrimaryAttack_Pressed_Implementation()
+{
+	switch(CurrentFireMode)
+	{
+	case EFireMode::None: break;
+	case EFireMode::Single:
+		FireWeapon();
+		break;
+	case EFireMode::Burst:
+		// TODO Redo Burst Fire
+		FireMode_Burst();
+		break;
+	case EFireMode::Auto:
+		GetWorldTimerManager().SetTimer(TimerHandle_FireMode_Auto, this, &APDPlayerPawn::FireMode_Auto, AutoFireDuration, true);
+		break;
+	default: ;
+	}
+}
+
+void APDPlayerPawn::FireWeapon_Implementation()
+{
+}
+
 void APDPlayerPawn::CameraEdgeRotation()
 {
 	FVector2D MousePosition;
@@ -119,6 +156,23 @@ const FRotator APDPlayerPawn::GetCameraBoomYawRotation(float RotationSpeed)
 	return Result;
 }
 
+void APDPlayerPawn::FireMode_Auto()
+{
+	// UE_LOG(LogTemp, Warning, TEXT("Auto Fire"));
+	FireWeapon();
+}
+
+void APDPlayerPawn::FireMode_Burst()
+{
+	// UE_LOG(LogTemp, Warning, TEXT("Burst Fire"));
+	FireWeapon();
+	TempBurstFireCount = FMath::Max(TempBurstFireCount - 1, 0); // Clamp us to never dropping below 0.
+    if (TempBurstFireCount > 0) // Do we still need to fire more?
+    {
+      GetWorld()->GetTimerManager().SetTimer(TimerHandle_FireMode_Burst, this, &APDPlayerPawn::FireMode_Burst, BurstFireDuration, false);            
+    }
+}
+
 // Called when the game starts or when spawned
 void APDPlayerPawn::BeginPlay()
 {
@@ -140,6 +194,9 @@ void APDPlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 	PlayerInputComponent->BindAxis("TurnRight", this, &APDPlayerPawn::TurnRight);
 	PlayerInputComponent->BindAxis("LookUp", this, &APDPlayerPawn::LookUp);
+
+	PlayerInputComponent->BindAction("FireWeapon", EInputEvent::IE_Pressed, this, &APDPlayerPawn::PrimaryAttack_Pressed);
+	PlayerInputComponent->BindAction("FireWeapon", EInputEvent::IE_Released, this, &APDPlayerPawn::PrimaryAttack_Released);
 
 }
 
