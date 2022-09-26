@@ -100,7 +100,7 @@ public:
 
 private:
 	void CameraEdgeRotation();
-	const FRotator GetCameraBoomYawRotation(float RotationSpeed);
+	FRotator GetCameraBoomYawRotation(float RotationSpeed) const;
 	void FireMode_Auto();
 	void FireMode_Burst();
 	

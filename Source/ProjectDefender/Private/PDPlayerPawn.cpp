@@ -99,8 +99,6 @@ void APDPlayerPawn::LookUp_Implementation(float Value)
 
 void APDPlayerPawn::PrimaryAttack_Released_Implementation()
 {
-	TempBurstFireCount = BurstFireCount;
-	GetWorldTimerManager().ClearTimer(TimerHandle_FireMode_Burst); // Clear and Invalidate Timer
 	GetWorldTimerManager().ClearTimer(TimerHandle_FireMode_Auto); // Clear and Invalidate Timer
 }
 
@@ -113,8 +111,7 @@ void APDPlayerPawn::PrimaryAttack_Pressed_Implementation()
 		FireWeapon();
 		break;
 	case EFireMode::Burst:
-		// TODO Redo Burst Fire
-		FireMode_Burst();
+		GetWorldTimerManager().SetTimer(TimerHandle_FireMode_Burst, this, &APDPlayerPawn::FireMode_Burst, BurstFireDuration, true);
 		break;
 	case EFireMode::Auto:
 		GetWorldTimerManager().SetTimer(TimerHandle_FireMode_Auto, this, &APDPlayerPawn::FireMode_Auto, AutoFireDuration, true);
@@ -149,7 +146,7 @@ void APDPlayerPawn::CameraEdgeRotation()
 	}
 }
 
-const FRotator APDPlayerPawn::GetCameraBoomYawRotation(float RotationSpeed)
+FRotator APDPlayerPawn::GetCameraBoomYawRotation(float RotationSpeed) const
 {
 	const FRotator CameraBoomRotation {CameraBoom->GetComponentRotation()};
 	const FRotator Result {FRotator(CameraBoomRotation.Pitch, CameraBoomRotation.Yaw + RotationSpeed, CameraBoomRotation.Roll)};
@@ -165,12 +162,13 @@ void APDPlayerPawn::FireMode_Auto()
 void APDPlayerPawn::FireMode_Burst()
 {
 	// UE_LOG(LogTemp, Warning, TEXT("Burst Fire"));
+	if(!(TempBurstFireCount > 0))
+	{
+		TempBurstFireCount = BurstFireCount;
+		GetWorldTimerManager().ClearTimer((TimerHandle_FireMode_Burst));
+	}
 	FireWeapon();
-	TempBurstFireCount = FMath::Max(TempBurstFireCount - 1, 0); // Clamp us to never dropping below 0.
-    if (TempBurstFireCount > 0) // Do we still need to fire more?
-    {
-      GetWorld()->GetTimerManager().SetTimer(TimerHandle_FireMode_Burst, this, &APDPlayerPawn::FireMode_Burst, BurstFireDuration, false);            
-    }
+	TempBurstFireCount = FMath::Max(TempBurstFireCount - 1, 0);
 }
 
 // Called when the game starts or when spawned
