@@ -9,6 +9,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
 APDPlayerPawn::APDPlayerPawn()
@@ -48,6 +49,7 @@ APDPlayerPawn::APDPlayerPawn()
 	LookRotationLimits = FVector2D(-20.0f, 20.0f);
 
 	// FireModes = static_cast<uint8>(EFireMode::FM_Single) | static_cast<uint8>(EFireMode::FM_Burst) | static_cast<uint8>(EFireMode::FM_Auto);
+	FireType = EFireType::Projectile;
 	CurrentFireMode = EFireMode::Single;
 	BurstFireCount = 3;
 	TempBurstFireCount = BurstFireCount;
@@ -66,16 +68,18 @@ void APDPlayerPawn::TurnRight_Implementation(float Value)
 	FVector CursorWorldPosition;
 	FVector CursorWorldDirection;
 	const bool IsWorldDirectionAvailable = UGameplayStatics::GetPlayerController(this, 0)->DeprojectMousePositionToWorld(CursorWorldPosition, CursorWorldDirection);
+	CursorWorldDirection = 1000.0f * CursorWorldDirection;
+	const FVector LookAtTargetLocation = CursorWorldPosition + CursorWorldDirection;
 	if(bCanTurnRight && IsWorldDirectionAvailable)
 	{
-		const FRotator MidMeshRot {MidMesh->GetComponentRotation()};
-		float YawMakeRotFromX =  FRotationMatrix::MakeFromX(CursorWorldDirection).Rotator().Yaw;
+		const FVector InverseTransformDirection {GetActorTransform().InverseTransformVectorNoScale((LookAtTargetLocation-EndMesh->GetComponentLocation()))};
+		float YawMakeRotFromX =  FRotationMatrix::MakeFromX(InverseTransformDirection).Rotator().Yaw;
 		if(bClampTurnRotation)
 		{
 			YawMakeRotFromX = FMath::ClampAngle(YawMakeRotFromX, TurnRotationLimits.X, TurnRotationLimits.Y);
 		}
-		const FRotator Result {FRotator(MidMeshRot.Pitch, YawMakeRotFromX, MidMeshRot.Roll)};
-		MidMesh->SetWorldRotation(Result);
+		const FRotator Result {FRotator(0.0f, YawMakeRotFromX, 0.0f)};
+		MidMesh->SetRelativeRotation(Result);
 	}
 }
 
@@ -84,16 +88,18 @@ void APDPlayerPawn::LookUp_Implementation(float Value)
 	FVector CursorWorldPosition;
 	FVector CursorWorldDirection;
 	const bool IsWorldDirectionAvailable = UGameplayStatics::GetPlayerController(this, 0)->DeprojectMousePositionToWorld(CursorWorldPosition, CursorWorldDirection);
+	CursorWorldDirection = 1000.0f * CursorWorldDirection;
+	const FVector LookAtTargetLocation = CursorWorldPosition + CursorWorldDirection;
 	if(bCanLookUp && IsWorldDirectionAvailable)
 	{
-		const FRotator EndMeshRot {EndMesh->GetComponentRotation()};
-		float PitchMakeRotFromX = FRotationMatrix::MakeFromX(CursorWorldDirection).Rotator().Pitch;
+		const FVector InverseTransformDirection {GetActorTransform().InverseTransformVectorNoScale((LookAtTargetLocation-EndMesh->GetComponentLocation()))};
+		float PitchMakeRotFromX = FRotationMatrix::MakeFromX(InverseTransformDirection).Rotator().Pitch;
 		if(bClampLookRotation)
 		{
 			PitchMakeRotFromX = FMath::ClampAngle(PitchMakeRotFromX, LookRotationLimits.X, LookRotationLimits.Y);
 		}
-		const FRotator Result {FRotator(PitchMakeRotFromX, EndMeshRot.Yaw, EndMeshRot.Roll)};
-		EndMesh->SetWorldRotation(Result);
+		const FRotator Result {FRotator(PitchMakeRotFromX, 0.0f, 0.0f)};
+		EndMesh->SetRelativeRotation(Result);
 	}
 }
 
@@ -106,22 +112,49 @@ void APDPlayerPawn::PrimaryAttack_Pressed_Implementation()
 {
 	switch(CurrentFireMode)
 	{
-	case EFireMode::None: break;
+	case EFireMode::None:
+		checkNoEntry();
+		break;
 	case EFireMode::Single:
 		FireWeapon();
 		break;
 	case EFireMode::Burst:
-		GetWorldTimerManager().SetTimer(TimerHandle_FireMode_Burst, this, &APDPlayerPawn::FireMode_Burst, BurstFireDuration, true);
+		GetWorldTimerManager().SetTimer(TimerHandle_FireMode_Burst, this, &APDPlayerPawn::FireMode_Burst, BurstFireDuration, true, 0.0f);
 		break;
 	case EFireMode::Auto:
-		GetWorldTimerManager().SetTimer(TimerHandle_FireMode_Auto, this, &APDPlayerPawn::FireMode_Auto, AutoFireDuration, true);
+		GetWorldTimerManager().SetTimer(TimerHandle_FireMode_Auto, this, &APDPlayerPawn::FireMode_Auto, AutoFireDuration, true, 0.0f);
 		break;
-	default: ;
+	default:
+		checkNoEntry();
 	}
 }
 
-void APDPlayerPawn::FireWeapon_Implementation()
+void APDPlayerPawn::FireWeapon()
 {
+	switch (FireType)
+	{
+	case EFireType::None:
+		checkNoEntry();
+		break;
+	case EFireType::Projectile:
+		ProjectileFire();
+		break;
+	case EFireType::Raycast:
+		HitscanFire();
+		break;
+	default:
+		checkNoEntry();
+	}
+}
+
+void APDPlayerPawn::ProjectileFire_Implementation()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Projectile Fire"));
+}
+
+void APDPlayerPawn::HitscanFire_Implementation()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Hitscan Fire"));
 }
 
 void APDPlayerPawn::CameraEdgeRotation()
@@ -171,6 +204,27 @@ void APDPlayerPawn::FireMode_Burst()
 	TempBurstFireCount = FMath::Max(TempBurstFireCount - 1, 0);
 }
 
+void APDPlayerPawn::ChangeFireMode()
+{
+	switch(CurrentFireMode)
+	{
+	case EFireMode::None:
+		checkNoEntry();
+		break;
+	case EFireMode::Single:
+		CurrentFireMode = EFireMode::Burst;
+		break;
+	case EFireMode::Burst:
+		CurrentFireMode = EFireMode::Auto;
+		break;
+	case EFireMode::Auto:
+		CurrentFireMode = EFireMode::Single;
+		break;
+	default:
+		checkNoEntry();
+	}
+}
+
 // Called when the game starts or when spawned
 void APDPlayerPawn::BeginPlay()
 {
@@ -196,5 +250,6 @@ void APDPlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindAction("FireWeapon", EInputEvent::IE_Pressed, this, &APDPlayerPawn::PrimaryAttack_Pressed);
 	PlayerInputComponent->BindAction("FireWeapon", EInputEvent::IE_Released, this, &APDPlayerPawn::PrimaryAttack_Released);
 
+	PlayerInputComponent->BindAction("FireMode", EInputEvent::IE_Pressed, this, &APDPlayerPawn::ChangeFireMode);
 }
 

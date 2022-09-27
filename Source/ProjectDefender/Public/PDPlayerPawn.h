@@ -16,6 +16,14 @@ enum class EFireMode: uint8
 	
 };
 
+UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
+enum class EFireType: uint8
+{
+	None = 0 UMETA(Hidden),
+	Projectile = 1 << 0 UMETA(DisplayName = "Projectile"),
+	Raycast = 1 << 1 UMETA(DisplayName = "Hitscan")
+};
+
 class USphereComponent;
 class UStaticMeshComponent;
 class USpringArmComponent;
@@ -74,6 +82,8 @@ public:
 	// uint8 FireModes;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|General")
+	EFireType FireType;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|General", DisplayName="Fire Mode")
 	EFireMode CurrentFireMode;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Turret|General", meta=(ClampMin="0.0", EditCondition="CurrentFireMode==EFireMode::Auto"))
 	float AutoFireDuration;
@@ -96,13 +106,19 @@ public:
 	void PrimaryAttack_Released();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Turret|Firing")
-	void FireWeapon();
+	void ProjectileFire();
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="Turret|Firing")
+	void HitscanFire();
 
 private:
 	void CameraEdgeRotation();
 	FRotator GetCameraBoomYawRotation(float RotationSpeed) const;
+
+	void FireWeapon();
+
 	void FireMode_Auto();
 	void FireMode_Burst();
+	void ChangeFireMode();
 	
 protected:
 	// Called when the game starts or when spawned
